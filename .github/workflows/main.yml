@@ -1,30 +1,53 @@
-name: Build Android Kernel
+name: Build Android Kernel (R36S)
 
-# Trigger manually or on push to main (you can change branch)
 on:
-  workflow_dispatch:
   push:
-    branches:
-      - main
+    branches: [ "lineage-18.1" ]
+  pull_request:
+    branches: [ "lineage-18.1" ]
+  workflow_dispatch:
 
 jobs:
-  build-kernel:
-    name: Build Kernel
-    runs-on: ubuntu-22.04
+  build:
+    runs-on: ubuntu-latest
 
     steps:
-      # 1) Checkout your kernel source
-      - name: Checkout repo
-        uses: actions/checkout@v4
+    - name: Checkout Kernel Source
+      uses: actions/checkout@v4
 
-      # 2) Build using Android Kernel Build Action
-      - name: Build kernel
-        uses: dabao1955/kernel_build_action@main
-        with:
-          kernel-url: ${{ github.repositoryUrl }}
-          kernel-branch: ${{ github.ref_name }}
-          config: build.config.aarch64      # example config — replace with actual config
-          arch: arm64
-          aosp-gcc: true
-          aosp-clang: true
-          android-version: 11               # change version as needed
+    - name: Install Dependencies
+      run: |
+        sudo apt update
+        sudo apt install -y \
+          gcc-aarch64-linux-gnu \
+          g++-aarch64-linux-gnu \
+          bc bison flex libssl-dev \
+          make libc6-dev libncurses5-dev \
+          build-essential ccache
+
+    - name: Set Environment
+      run: |
+        echo "CROSS_COMPILE=aarch64-linux-gnu-" >> $GITHUB_ENV
+        echo "ARCH=arm64" >> $GITHUB_ENV
+
+    - name: Kernel Defconfig
+      run: |
+        make rk3326_linux_defconfig
+
+    - name: Build Kernel
+      run: |
+        make -j$(nproc)
+
+    - name: Copy Build Outputs
+      run: |
+        mkdir output
+        cp arch/arm64/boot/Image output/
+        cp arch/arm64/boot/dts/rockchip/*.dtb output/ || true
+        cp arch/arm64/boot/dts/rockchip/overlay/*.dtbo output/ || true
+        find . -name "*.ko" -exec cp {} output/ \; || true
+
+    - name: Upload Artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: R36S-Kernel
+        path: output

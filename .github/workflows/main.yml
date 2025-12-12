@@ -1,0 +1,30 @@
+name: Build Android Kernel
+
+# Trigger manually or on push to main (you can change branch)
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-kernel:
+    name: Build Kernel
+    runs-on: ubuntu-22.04
+
+    steps:
+      # 1) Checkout your kernel source
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      # 2) Build using Android Kernel Build Action
+      - name: Build kernel
+        uses: dabao1955/kernel_build_action@main
+        with:
+          kernel-url: ${{ github.repositoryUrl }}
+          kernel-branch: ${{ github.ref_name }}
+          config: build.config.aarch64      # example config — replace with actual config
+          arch: arm64
+          aosp-gcc: true
+          aosp-clang: true
+          android-version: 11               # change version as needed

@@ -40,7 +40,7 @@ jobs:
           export ARCH=arm64
           export CROSS_COMPILE=aarch64-linux-gnu-
 
-          make rk3566_optimized_linux_defconfig
+          make rk3326_linux_defconfig
           make -j$(nproc) \
             KERNEL_DTS=rk3326 \
             KERNEL_CONFIG=rk3326_linux_defconfig

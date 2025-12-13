@@ -1,53 +1,56 @@
-name: Build Android Kernel (R36S)
+name: Build RK3566 Kernel
 
 on:
-  push:
-    branches: [ "lineage-18.1" ]
-  pull_request:
-    branches: [ "lineage-18.1" ]
   workflow_dispatch:
+  push:
+    branches: [ main ]
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
 
     steps:
-    - name: Checkout Kernel Source
-      uses: actions/checkout@v4
+      # 1️⃣ Checkout source (safe)
+      - name: Checkout kernel source
+        uses: actions/checkout@v4
 
-    - name: Install Dependencies
-      run: |
-        sudo apt update
-        sudo apt install -y \
-          gcc-aarch64-linux-gnu \
-          g++-aarch64-linux-gnu \
-          bc bison flex libssl-dev \
-          make libc6-dev libncurses5-dev \
-          build-essential ccache
+      # 2️⃣ Install dependencies
+      - name: Install build dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y \
+            build-essential \
+            bc \
+            bison \
+            flex \
+            libssl-dev \
+            libelf-dev \
+            dwarves \
+            python3
 
-    - name: Set Environment
-      run: |
-        echo "CROSS_COMPILE=aarch64-linux-gnu-" >> $GITHUB_ENV
-        echo "ARCH=arm64" >> $GITHUB_ENV
+      # 3️⃣ Setup toolchain (clang OR gcc)
+      # 👉 Use this if kernel supports clang
+      - name: Setup Clang
+        run: |
+          sudo apt install -y clang llvm lld
 
-    - name: Kernel Defconfig
-      run: |
-        make rk3326_linux_defconfig
+      # 4️⃣ Build kernel
+      - name: Build RK3566 kernel
+        run: |
+          export ARCH=arm64
+          export CROSS_COMPILE=aarch64-linux-gnu-
 
-    - name: Build Kernel
-      run: |
-        make -j$(nproc)
+          make rk3566_optimized_linux_defconfig
+          make -j$(nproc) \
+            KERNEL_DTS=rk3326 \
+            KERNEL_CONFIG=rk3326_linux_defconfig
 
-    - name: Copy Build Outputs
-      run: |
-        mkdir output
-        cp arch/arm64/boot/Image output/
-        cp arch/arm64/boot/dts/rockchip/*.dtb output/ || true
-        cp arch/arm64/boot/dts/rockchip/overlay/*.dtbo output/ || true
-        find . -name "*.ko" -exec cp {} output/ \; || true
-
-    - name: Upload Artifacts
-      uses: actions/upload-artifact@v4
-      with:
-        name: R36S-Kernel
-        path: output
+      # 5️⃣ Upload build output
+      - name: Upload kernel artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: rk3566-kernel
+          path: |
+            arch/arm64/boot/Image
+            arch/arm64/boot/Image.gz
+            arch/arm64/boot/dts
